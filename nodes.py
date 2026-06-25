@@ -66,18 +66,6 @@ except ImportError:
 logger = logging.getLogger("ComfyUI-Qwen3-TTS")
 
 EMOTION_MAP = {
-    # 中文情绪
-    "开心": "用愉快、开心的语气说话，充满活力和阳光。",
-    "激动": "语气非常激动，语速稍快，充满兴奋感。",
-    "生气": "用愤怒、严厉的语气说话，语调生硬且带有攻击性。",
-    "难过": "语气低沉、忧伤，带有明显的哀伤和哭腔感。",
-    "温柔": "声音轻柔、温婉，充满爱意和关怀。",
-    "恐惧": "声音颤抖，语气惊恐不安，呼吸感加重。",
-    "冷酷": "语气冰冷、没有任何情感波动，显得疏离而机械。",
-    "低语": "用极小的声音说话，像是在耳边轻声细语，充满神秘感。",
-    "惊讶": "语气充满震惊和不可思议，音调上扬，带有明显的意外感。",
-    "厌恶": "语气充满嫌弃和反感，带有不屑和排斥的情感。",
-    "平静": "语气平稳自然，没有明显的情绪波动，清晰且沉稳。",
     # English Emotions (Mapping to detailed instructs)
     "happy": "Speak in a very happy and cheerful tone, full of energy.",
     "angry": "Speak with an angry and stern tone, aggressive and sharp.",
@@ -483,6 +471,7 @@ class Qwen3TTSBaseNode:
                 "INT",
                 {"default": 50, "min": 0, "max": 200, "display": "number"},
             ),
+            "batch_size": ("INT", {"default": 4, "min": 1, "max": 32, "step": 1, "tooltip": "Number of lines to process in parallel. Larger = faster but more VRAM."}),
         }
 
     def _pack_gen_kwargs(self, kwargs):
@@ -495,6 +484,7 @@ class Qwen3TTSBaseNode:
             "subtalker_temperature",
             "subtalker_top_p",
             "subtalker_top_k",
+            "batch_size",
         ]
         res = {k: kwargs.get(k) for k in keys if k in kwargs}
 
@@ -526,7 +516,7 @@ class Qwen3TTSCustomVoice(Qwen3TTSBaseNode):
                     "STRING",
                     {
                         "multiline": True,
-                        "default": "你好，我是Vivian。[pause:0.8] 很高兴为你服务！",
+                        "default": "Hello, I'm Vivian. [pause:0.8] It's a pleasure to assist you!",
                     },
                 ),
                 "speaker": (speaker_options, {"default": speaker_options[0]}),
@@ -558,7 +548,7 @@ class Qwen3TTSCustomVoice(Qwen3TTSBaseNode):
                     {
                         "multiline": True,
                         "default": "",
-                        "placeholder": "可选：例如 '开心'",
+                        "placeholder": "Optional: For example, 'happy'",
                     },
                 ),
             },
@@ -653,15 +643,15 @@ class Qwen3TTSVoiceDesign(Qwen3TTSBaseNode):
                     "STRING",
                     {
                         "multiline": True,
-                        "default": "哥哥，你回来啦。[pause:0.5] 人家等了你好久好久了！，要抱抱！\nIt's in the top drawer... wait, it's empty?",
+                        "default": "Brother, you're back! [pause:0.5] I've been waiting for you for so long! I want a hug!！\nIt's in the top drawer... wait, it's empty?",
                     },
                 ),
                 "voice_instruction": (
                     "STRING",
                     {
                         "multiline": True,
-                        "default": "体现撒娇稚嫩的萝莉女声，音调偏高且起伏明显，营造出黏人、做作又刻意卖萌的听觉效果。\nSpeak in an incredulous tone, but with a hint of panic.",
-                        "placeholder": "描述声音特征 (语气/音色)。",
+                        "default": "The voice is that of a cute, innocent little girl, with a high pitch and obvious fluctuations, creating a clingy, affected, and deliberately cute auditory effect. \nSpeak in an incredulous tone, but with a hint of panic.",
+                        "placeholder": "Describe the characteristics of the voice (tone/timbre).",
                     },
                 ),
                 "language": (
@@ -677,7 +667,7 @@ class Qwen3TTSVoiceDesign(Qwen3TTSBaseNode):
                         "Spanish",
                         "Italian",
                     ],
-                    {"default": "Chinese"},
+                    {"default": "Spanish"},
                 ),
                 "output_mode": (
                     ["Batch (Separate)", "Concatenate (Merge)"],
@@ -769,7 +759,7 @@ class Qwen3TTSVoiceClonePrompt(Qwen3TTSBaseNode):
                     "STRING",
                     {
                         "multiline": True,
-                        "default": "参考音频里的具体内容文本。",
+                        "default": "Refer to the specific text content in the audio.",
                         "placeholder": "If X-Vector Only is enabled, this can be empty.",
                     },
                 ),
@@ -821,7 +811,7 @@ class Qwen3TTSVoiceClone(Qwen3TTSBaseNode):
                     "STRING",
                     {
                         "multiline": True,
-                        "default": "我想用这个声音说这句话。[pause:0.5] 真的很有趣！",
+                        "default": "I want to say this with this voice. [pause:0.5] It's really fun!",
                     },
                 ),
                 "target_language": (
@@ -837,7 +827,7 @@ class Qwen3TTSVoiceClone(Qwen3TTSBaseNode):
                         "Spanish",
                         "Italian",
                     ],
-                    {"default": "Chinese"},
+                    {"default": "Spanish"},
                 ),
                 "output_mode": (
                     ["Batch (Separate)", "Concatenate (Merge)"],
@@ -861,7 +851,7 @@ class Qwen3TTSVoiceClone(Qwen3TTSBaseNode):
                     {
                         "multiline": True,
                         "default": "",
-                        "placeholder": "可选：输入 '开心', 'sad' 或完整描述。",
+                        "placeholder": "Optional: Enter 'happy', 'sad', or a full description.",
                     },
                 ),
                 "enable_x_vector_instant": (
@@ -1190,7 +1180,7 @@ class Qwen3TTSAudioPostProcess:
                 "audio": ("AUDIO",),
                 "fade_in_ms": ("INT", {"default": 10}),
                 "fade_out_ms": ("INT", {"default": 50}),
-                "target_sample_rate": ([24000, 44100, 48000], {"default": 44100}),
+                "target_sample_rate": (["24000", "44100", "48000"], {"default": "48000"}),
             }
         }
 
@@ -1207,14 +1197,15 @@ class Qwen3TTSAudioPostProcess:
             waveform[..., :fi] *= torch.linspace(0.0, 1.0, fi)
         if fo > 0:
             waveform[..., -fo:] *= torch.linspace(1.0, 0.0, fo)
-        if sr != target_sample_rate:
+        target_sr_int = int(target_sample_rate)
+        if sr != target_sr_int:
             waveform = F.interpolate(
                 waveform,
-                size=int(waveform.shape[-1] * target_sample_rate / sr),
+                size=int(waveform.shape[-1] * target_sr_int / sr),
                 mode="linear",
                 align_corners=False,
             )
-            sr = target_sample_rate
+            sr = target_sr_int
         return ({"waveform": waveform, "sample_rate": sr},)
 
 
@@ -1260,10 +1251,10 @@ class Qwen3TTSScriptProcessor:
                     "STRING",
                     {
                         "multiline": True,
-                        "default": "角色A: [开心] 你好！\n[pause:1.0]\n角色B: [冷酷] 没空。",
+                        "default": "Character A: [Happy] Hello! \n[pause:1.0]\nCharacter B: [Cold] I'm busy.",
                     },
                 ),
-                "default_instruct": ("STRING", {"default": "正常语气说话。"}),
+                "default_instruct": ("STRING", {"default": "Speak in a normal tone."}),
             }
         }
 
@@ -1291,7 +1282,7 @@ class Qwen3TTSScriptProcessor:
             tags = re.findall(r"\[([^\]]+)\]", content)
             clean_text = re.sub(r"\[([^\]]+)\]", "", content).strip()
             instr = (
-                " ".join([EMOTION_MAP.get(t, f"以{t}的语气说话。") for t in tags])
+                " ".join([EMOTION_MAP.get(t, f"Speak in the tone of {t}.") for t in tags])
                 if tags
                 else default_instruct
             )
