@@ -48,7 +48,7 @@
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/wanaigc/ComfyUI-Qwen3-TTS.git
+git clone https://github.com/thefantas/ComfyUI-Qwen3-TTS.git
 
 
 ```
